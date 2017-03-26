@@ -1,0 +1,46 @@
+{
+  "name": "homebridge-tesla-remote",
+  "version": "0.2.0",
+  "description": "Tesla support for Homebridge: https://github.com/rjyo/homebridge-tesla-remote",
+  "main": "dist/index.js",
+  "license": "MIT",
+  "author": "Rakuraku Jyo <jyo.rakuraku@gmail.com>",
+  "keywords": [
+    "homebridge-plugin"
+  ],
+  "scripts": {
+    "start": "NODE=production node ./dist/index",
+    "dev": "./node_modules/.bin/babel-watch ./src/index",
+    "lint": "./node_modules/.bin/eslint src",
+    "build": "./node_modules/.bin/babel src -d dist --ignore test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/rjyo/homebridge-tesla-remote.git"
+  },
+  "bugs": {
+    "url": "http://github.com/rjyo/homebridge-tesla-remote/issues"
+  },
+  "files": [
+    "dist"
+  ],
+  "babel": { "presets": ["es2015", "stage-0"] },
+  "engines": {
+    "node": ">=0.12.0",
+    "homebridge": ">=0.2.0"
+  },
+  "dependencies": {
+    "teslams": "^1.1.6"
+  },
+  "devDependencies": {
+    "babel-cli": "6.22.2",
+    "babel-eslint": "7.1.1",
+    "babel-preset-es2015": "6.22.0",
+    "babel-preset-stage-0": "6.22.0",
+    "babel-watch": "2.0.6",
+    "eslint": "3.16.0",
+    "eslint-config-airbnb-base": "11.0.1",
+    "eslint-plugin-babel": "4.0.1",
+    "eslint-plugin-import": "2.2.0"
+  }
+}

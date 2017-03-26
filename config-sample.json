@@ -1,0 +1,20 @@
+{
+    "bridge": {
+        "name": "Homebridge",
+        "username": "99:22:3D:E3:A3:30",
+        "port": 31482,
+        "pin": "331-45-154"
+    },
+    
+    "description": "This is an example configuration file with one fake accessory and one fake platform. You can use this as a template for creating your own configuration file containing devices you actually own.",
+
+    "accessories": [
+        {
+            "accessory": "Tesla",
+            "name": "My Model S",
+            "token": "XXX"
+        }
+    ],
+
+    "platforms": []
+}
