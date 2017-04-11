@@ -4,7 +4,7 @@ A [homebridge](https://github.com/nfarina/homebridge) plugin, by which you can c
 
 No username or password will be used. Instead you need to generate an access token with [teslams](https://github.com/hjespers/teslams)
   
-    teslams -u xxx@xxx.com -p xxx --print_token
+    teslacmd -u xxx@xxx.com -p xxx --print_token
 
 Install the plugin:
 
