@@ -1,6 +1,6 @@
 {
   "name": "homebridge-tesla-remote",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Tesla support for Homebridge: https://github.com/rjyo/homebridge-tesla-remote",
   "main": "dist/index.js",
   "license": "MIT",
