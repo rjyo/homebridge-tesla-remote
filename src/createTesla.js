@@ -16,7 +16,8 @@ export default function createTesla({ Service, Characteristic }) {
       this.temperature = 0
       this.tempSetting = 0
       this.climateState = Characteristic.TargetHeatingCoolingState.OFF
-      this.chargeState = false
+      this.charging = false
+      this.chargingState = Characteristic.ChargingState.NOT_CHARGEABLE
       this.batteryLevel = 0
 
       this.temperatureService = new Service.Thermostat(this.name)
@@ -45,10 +46,12 @@ export default function createTesla({ Service, Characteristic }) {
       this.batteryLevelService = new Service.BatteryService(this.name)
       this.batteryLevelService.getCharacteristic(Characteristic.BatteryLevel)
         .on('get', this.getBatteryLevel.bind(this))
+      this.batteryLevelService.getCharacteristic(Characteristic.ChargingState)
+        .on('get', this.getChargingState.bind(this, 'state'))
 
       this.chargingService = new Service.Switch(this.name + ' Charging', 'charging')
       this.chargingService.getCharacteristic(Characteristic.On)
-        .on('get', this.isCharging.bind(this))
+        .on('get', this.getChargingState.bind(this, 'charging'))
         .on('set', this.setCharging.bind(this))
     }
 
@@ -71,7 +74,7 @@ export default function createTesla({ Service, Characteristic }) {
       })
     }
 
-    isCharging(callback) {
+    getChargingState(what, callback) {
       this.log('Getting current charging state...')
 
       this.getID((err, id) => {
@@ -79,13 +82,24 @@ export default function createTesla({ Service, Characteristic }) {
 
         tesla.get_charge_state(id, (state) => {
           if (state) {
-            this.chargeState = ((state.charge_rate > 0) ? true : false)
+            this.charging = ((state.charge_rate > 0) ? true : false)
+            const connected = state.charge_port_latch === 'Engaged' ? true : false
+            this.chargingState = Characteristic.ChargingState.NOT_CHARGEABLE
+            if (connected) {
+              this.chargingState = Characteristic.ChargingState.NOT_CHARGING
+            }
+            if (this.charging) {
+              this.chargingState = Characteristic.ChargingState.CHARGING
+            }
           } else {
             this.log('Error getting charging state: ' + util.inspect(arguments))
             return callback(new Error('Error getting charging state.'))
           }
 
-          return callback(null, this.chargeState)
+          switch (what) {
+            case 'state': return callback(null, this.chargingState)
+            case 'charging': return callback(null, this.charging)
+          }
         })
       })
     }
