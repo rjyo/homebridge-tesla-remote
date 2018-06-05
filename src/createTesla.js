@@ -13,18 +13,26 @@ export default function createTesla({ Service, Characteristic }) {
       this.name = config.name
       this.token = config.token
       this.vin = config.vin
-
       this.temperature = 0
-      this.climateOn = false
+      this.tempSetting = 0
+      this.climateState = Characteristic.TargetHeatingCoolingState.OFF
+      this.chargeState = false
+      this.batteryLevel = 0
 
-      this.temperatureService = new Service.TemperatureSensor(this.name)
-      this.temperatureService.getCharacteristic(CurrentTemperature)
+      this.temperatureService = new Service.Thermostat(this.name)
+      this.temperatureService.getCharacteristic(Characteristic.CurrentTemperature)
         .on('get', this.getClimateState.bind(this, 'temperature'))
-
-      this.climateService = new Service.Switch(this.name)
-      this.climateService.getCharacteristic(Characteristic.On)
-        .on('get', this.getClimateState.bind(this, 'climate'))
+      this.temperatureService.getCharacteristic(Characteristic.TargetTemperature)
+        .on('get', this.getClimateState.bind(this, 'setting'))
+        .on('set', this.setTargetTemperature.bind(this))
+      this.temperatureService.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+        .on('get', this.getClimateState.bind(this, 'state'))
         .on('set', this.setClimateOn.bind(this))
+      this.temperatureService.getCharacteristic(Characteristic.TemperatureDisplayUnits)
+        .on('get', (callback) => {
+          this.log('Getting temperature display units...')
+          callback(null, Characteristic.TemperatureDisplayUnits.FAHRENHEIT)
+        })
 
       this.lockService = new Service.LockMechanism(this.name)
       this.lockService.getCharacteristic(LockCurrentState)
@@ -33,6 +41,99 @@ export default function createTesla({ Service, Characteristic }) {
       this.lockService.getCharacteristic(LockTargetState)
         .on('get', this.getLockState.bind(this))
         .on('set', this.setLockState.bind(this))
+
+      this.batteryLevelService = new Service.BatteryService(this.name)
+      this.batteryLevelService.getCharacteristic(Characteristic.BatteryLevel)
+        .on('get', this.getBatteryLevel.bind(this))
+
+      this.chargingService = new Service.Switch(this.name + ' Charging', 'charging')
+      this.chargingService.getCharacteristic(Characteristic.On)
+        .on('get', this.isCharging.bind(this))
+        .on('set', this.setCharging.bind(this))
+    }
+
+    getBatteryLevel(callback) {
+      this.log('Getting currenting battery level...')
+
+      this.getID((err, id) => {
+        if (err) return callback(err)
+
+        tesla.get_charge_state(id, (cs) => {
+          if (cs && cs.battery_level) {
+            this.batteryLevel = cs.battery_level
+          } else {
+            this.log('Error getting battery level: ' + util.inspect(arguments))
+            return callback(new Error('Error getting battery level.'))
+          }
+
+          return callback(null, this.batteryLevel)
+        })
+      })
+    }
+
+    isCharging(callback) {
+      this.log('Getting current charging state...')
+
+      this.getID((err, id) => {
+        if (err) return callback(err)
+
+        tesla.get_charge_state(id, (state) => {
+          if (state) {
+            this.chargeState = ((state.charge_rate > 0) ? true : false)
+          } else {
+            this.log('Error getting charging state: ' + util.inspect(arguments))
+            return callback(new Error('Error getting charging state.'))
+          }
+
+          return callback(null, this.chargeState)
+        })
+      })
+    }
+
+    setCharging(on, callback) {
+      this.log('Setting charging to on = ' + on)
+      this.getID((err, id) => {
+        if (err) return callback(err)
+
+        const charge = on ? 'on' : 'off'
+
+        tesla.charge_state({id:id, charge}, (response) => {
+          if (response.result == true) {
+            if (on) {
+              this.log('Car started charging')
+            } else {
+              this.log('Car stopped charging')
+            }
+            callback() // success
+          } else if (response.reason === 'not_charging') {
+            this.log('Not charging')
+            callback(new Error('Not charging.'))
+          } else if (response.reason === 'complete') {
+            this.log('Charging already complete')
+            callback(new Error('Charging already complete.'))
+          } else {
+            this.log('Error setting charging state: ' + util.inspect(response))
+            callback(new Error('Error setting charging state.'))
+          }
+        })
+      })
+    }
+
+    setTargetTemperature(value, callback) {
+      this.log('Setting temperator to = ' + on)
+      this.getID((err, id) => {
+        if (err) return callback(err)
+
+        tesla.set_temperature({id:id, value, value}, (response) => {
+          if (response.result == true) {
+            this.log('Setting temperature to ' + value)
+            callback() // success
+          } else {
+            this.log('Error setting temperature: ' + util.inspect(response))
+            callback(new Error('Error setting temperature.'))
+          }
+        })
+      })
     }
 
     getClimateState(what, callback) {
@@ -44,32 +145,35 @@ export default function createTesla({ Service, Characteristic }) {
         tesla.get_climate_state(id, (state) => {
           if (state && state.inside_temp) {
             this.temperature = state.inside_temp
-            this.climateOn = state.is_climate_on
+            this.tempSetting = state.driver_temp_setting
+            this.climateState = state.is_auto_conditioning_on ? Characteristic.TargetHeatingCoolingState.AUTO : Characteristic.TargetHeatingCoolingState.OFF
+          } else {
+            this.log("Error getting climate state: " + util.inspect(arguments))
+            callback(new Error("Error getting climate state."))
           }
 
           switch (what) {
             case 'temperature': return callback(null, this.temperature)
-            case 'climate': return callback(null, this.climateOn)
-            default: return callback(null, { temperature: this.temperature, climateOn: this.climateOn })
+            case 'setting': return callback(null, this.tempSetting)
+            case 'state': return callback(null, this.climateState)
           }
         })
       })
     }
 
-    setClimateOn(on, callback) {
-      this.log("Setting climate to on = " + on)
+    setClimateOn(state, callback) {
+      const climateState = state === Characteristic.TargetHeatingCoolingState.OFF ? 'stop' : 'start'
+      this.log("Setting climate to = " + climateState)
       this.getID((err, id) => {
         if (err) return callback(err)
 
-        const climateState = on ? 'start' : 'stop';
-
         tesla.auto_conditioning({id:id, climate: climateState}, (response) => {
           if (response.result == true) {
-            this.log("Car climate control is now on = " + on)
+            this.log("Car climate state = " + climateState)
             callback(null) // success
           } else {
             this.log("Error setting climate state: " + util.inspect(arguments))
-            callback(err || new Error("Error setting climate state."))
+            callback(new Error("Error setting climate state."))
           }
         })
       })
@@ -111,7 +215,7 @@ export default function createTesla({ Service, Characteristic }) {
             callback(null) // success
           } else {
             this.log("Error setting lock state: " + util.inspect(arguments))
-            callback(err || new Error("Error setting lock state."))
+            callback(new Error("Error setting lock state."))
           }
         })
       })
@@ -144,7 +248,7 @@ export default function createTesla({ Service, Characteristic }) {
     }
 
     getServices() {
-      return [this.temperatureService, this.climateService, this.lockService]
+      return [this.temperatureService, this.lockService, this.batteryLevelService, this.chargingService]
     }
   }
 }
