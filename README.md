@@ -2,7 +2,7 @@
 
 A [homebridge](https://github.com/nfarina/homebridge) plugin, by which you can control your tesla with Homekit and Siri.
 
-No username or password will be used. Instead you need to generate an access token with [teslams](https://github.com/hjespers/teslams)
+No username or password will be used. Instead, you need to generate an access token with [teslams](https://github.com/hjespers/teslams)
   
     teslacmd -u xxx@xxx.com -p xxx --print_token
 
@@ -25,6 +25,6 @@ Add the following to config.json:
 
 ## Limits
 
-The temperature won't be return the by the Tesla API sometime.
+The temperature won't be returned by the Tesla API sometimes.
 
-If you turn off the 'Always Connected' option, it might take a long time before the status are fetched.
+If you turn off the 'Always Connected' option, it might take a long time before the status is fetched.
